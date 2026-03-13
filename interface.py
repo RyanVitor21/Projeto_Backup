@@ -31,8 +31,8 @@ class BackupApp(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.origem = ""
-        self.destino = ""
+        self.origem = r"C:\Users\Ryan\Music"
+        self.destino = r"E:\\"
 
         self.setWindowTitle("Backup para Pendrive")
 
