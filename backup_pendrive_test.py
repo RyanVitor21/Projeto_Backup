@@ -12,7 +12,9 @@ def fazer_backup(origem, destino, log_callback=None):
 
     data_atual = datetime.datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
 
-    pasta_backup = os.path.join(destino, "backup", data_atual)
+    nome_origem = os.path.basename(origem)
+
+    pasta_backup = os.path.join(destino, "backup", data_atual, nome_origem)
 
     os.makedirs(pasta_backup, exist_ok=True)
 
@@ -20,7 +22,6 @@ def fazer_backup(origem, destino, log_callback=None):
 
     for root, dirs, files in os.walk(origem):
 
-        # criar estrutura da pasta no backup
         caminho_relativo = os.path.relpath(root, origem)
         pasta_destino = os.path.join(pasta_backup, caminho_relativo)
 
@@ -35,16 +36,14 @@ def fazer_backup(origem, destino, log_callback=None):
             caminho_destino = os.path.join(pasta_destino, arquivo)
 
             try:
-
                 shutil.copy2(caminho_origem, caminho_destino)
 
                 if log_callback:
-                    log_callback(f"Arquivo copiado: {arquivo}")
+                    log_callback(f"[{nome_origem}] Arquivo copiado: {arquivo}")
 
             except Exception as erro:
-
                 if log_callback:
-                    log_callback(f"Erro ao copiar {arquivo}: {erro}")
+                    log_callback(f"[{nome_origem}] Erro ao copiar {arquivo}: {erro}")
 
     if log_callback:
-        log_callback("Backup finalizado.")
+        log_callback(f"[{nome_origem}] Backup finalizado.")

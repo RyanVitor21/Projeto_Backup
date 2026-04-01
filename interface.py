@@ -13,16 +13,17 @@ class BackupThread(QThread):
 
     log_signal = pyqtSignal(str)
 
-    def __init__(self, origem, destino):
+    def __init__(self, origens, destino):
         super().__init__()
-        self.origem = origem
+        self.origens = origens
         self.destino = destino
 
     def run(self):
-        fazer_backup(
-            self.origem,
-            self.destino,
-            log_callback=self.log_signal.emit
+        for origem in self.origens:
+            fazer_backup(
+                origem,
+                self.destino,
+                log_callback=self.log_signal.emit
             )
 
 
@@ -31,23 +32,27 @@ class BackupApp(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.origem = r"C:\Users\Ryan\Music"
-        self.destino = r"E:\\"
+        self.origens = []
+        self.destino = ""
 
         self.setWindowTitle("Backup para Pendrive")
 
         layout = QVBoxLayout()
 
         # label origem
-        self.label_origem = QLabel(f"Pasta origem: {self.origem}")
+        self.label_origem = QLabel("Pastas origem: nenhuma selecionada")
         layout.addWidget(self.label_origem)
 
-        btn_origem = QPushButton("Selecionar Pasta Origem")
+        btn_origem = QPushButton("Adicionar Pasta Origem")
         btn_origem.clicked.connect(self.escolher_origem)
         layout.addWidget(btn_origem)
 
+        btn_limpar = QPushButton("Limpar Pastas")
+        btn_limpar.clicked.connect(self.limpar_origens)
+        layout.addWidget(btn_limpar)
+
         # label destino
-        self.label_destino = QLabel(f"Pasta destino: {self.destino}")
+        self.label_destino = QLabel("Pasta destino: não selecionada")
         layout.addWidget(self.label_destino)
 
         btn_destino = QPushButton("Selecionar Pasta Destino")
@@ -66,11 +71,18 @@ class BackupApp(QWidget):
         self.setLayout(layout)
 
     def escolher_origem(self):
-        pasta = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Origem")
+        pasta = QFileDialog.getExistingDirectory(self, "Selecionar Pasta")
 
         if pasta:
-            self.origem = pasta
-            self.label_origem.setText(f"Pasta origem: {pasta}")
+            self.origens.append(pasta)
+
+            self.label_origem.setText(
+                "Pastas:\n" + "\n".join(self.origens)
+            )
+
+    def limpar_origens(self):
+        self.origens = []
+        self.label_origem.setText("Pastas origem: nenhuma selecionada")
 
     def escolher_destino(self):
         pasta = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Destino")
@@ -81,11 +93,11 @@ class BackupApp(QWidget):
 
     def iniciar_backup(self):
 
-        if not self.origem or not self.destino:
-            self.log.append("Selecione origem e destino.")
+        if not self.origens or not self.destino:
+            self.log.append("Selecione pelo menos uma origem e um destino.")
             return
-        
-        self.thread = BackupThread(self.origem, self.destino)
+
+        self.thread = BackupThread(self.origens, self.destino)
 
         self.thread.log_signal.connect(self.log.append)
 
