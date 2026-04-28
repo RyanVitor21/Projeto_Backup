@@ -1,12 +1,12 @@
 import sys
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
     QFileDialog, QLabel, QTextEdit, QProgressBar
 )
 
-from backup_pendrive_test import fazer_backup, contar_arquivos
+from backup_incremental_snapshot import fazer_backup, contar_arquivos
 
 
 class BackupThread(QThread):
@@ -14,10 +14,11 @@ class BackupThread(QThread):
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
 
-    def __init__(self, origens, destino):
+    def __init__(self, origens, destino, modo):
         super().__init__()
         self.origens = origens
         self.destino = destino
+        self.modo = modo
 
     def run(self):
 
@@ -31,12 +32,12 @@ class BackupThread(QThread):
             fazer_backup(
                 origem,
                 self.destino,
+                modo=self.modo,
                 log_callback=self.log_signal.emit,
                 progress_data=progresso,
                 progress_callback=self.progress_signal.emit
             )
 
-        # 🔥 garante 100% no final
         self.progress_signal.emit(100)
 
 
@@ -47,17 +48,20 @@ class BackupApp(QWidget):
 
         self.origens = []
         self.destino = ""
+        self.thread = None
 
-        self.setWindowTitle("Backup para Pendrive")
+        # timer automático (10 minutos)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.backup_automatico)
+
+        self.setWindowTitle("Sistema de Backup")
 
         layout = QVBoxLayout()
 
-        # barra de progresso
         self.progress = QProgressBar()
         self.progress.setFormat("Progresso: %p%")
         layout.addWidget(self.progress)
 
-        # label origem
         self.label_origem = QLabel("Pastas origem: nenhuma selecionada")
         layout.addWidget(self.label_origem)
 
@@ -69,7 +73,6 @@ class BackupApp(QWidget):
         btn_limpar.clicked.connect(self.limpar_origens)
         layout.addWidget(btn_limpar)
 
-        # label destino
         self.label_destino = QLabel("Pasta destino: não selecionada")
         layout.addWidget(self.label_destino)
 
@@ -77,12 +80,28 @@ class BackupApp(QWidget):
         btn_destino.clicked.connect(self.escolher_destino)
         layout.addWidget(btn_destino)
 
-        # botão backup
-        btn_backup = QPushButton("Iniciar Backup")
-        btn_backup.clicked.connect(self.iniciar_backup)
-        layout.addWidget(btn_backup)
+        btn_incremental = QPushButton("Backup Rápido (Incremental)")
+        btn_incremental.clicked.connect(
+            lambda: self.iniciar_backup("incremental")
+        )
+        layout.addWidget(btn_incremental)
 
-        # log
+        btn_snapshot = QPushButton("Criar Snapshot Completo")
+        btn_snapshot.clicked.connect(
+            lambda: self.iniciar_backup("snapshot")
+        )
+        layout.addWidget(btn_snapshot)
+
+        # botão ativar automático
+        btn_auto_on = QPushButton("Ativar Backup Automático (10 min)")
+        btn_auto_on.clicked.connect(self.ativar_backup_automatico)
+        layout.addWidget(btn_auto_on)
+
+        # botão parar automático
+        btn_auto_off = QPushButton("Parar Backup Automático")
+        btn_auto_off.clicked.connect(self.parar_backup_automatico)
+        layout.addWidget(btn_auto_off)
+
         self.log = QTextEdit()
         layout.addWidget(self.log)
 
@@ -103,26 +122,61 @@ class BackupApp(QWidget):
         self.label_origem.setText("Pastas origem: nenhuma selecionada")
 
     def escolher_destino(self):
-        pasta = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Destino")
+        pasta = QFileDialog.getExistingDirectory(
+            self,
+            "Selecionar Pasta Destino"
+        )
 
         if pasta:
             self.destino = pasta
             self.label_destino.setText(f"Destino: {pasta}")
 
-    def iniciar_backup(self):
+    def iniciar_backup(self, modo):
 
         if not self.origens or not self.destino:
-            self.log.append("Selecione pelo menos uma origem e um destino.")
+            self.log.append(
+                "Selecione pelo menos uma origem e um destino."
+            )
+            return
+
+        # evita iniciar outro backup enquanto um está rodando
+        if self.thread and self.thread.isRunning():
+            self.log.append("Backup já está em andamento.")
             return
 
         self.progress.setValue(0)
 
-        self.thread = BackupThread(self.origens, self.destino)
+        self.thread = BackupThread(
+            self.origens,
+            self.destino,
+            modo
+        )
 
         self.thread.log_signal.connect(self.log.append)
         self.thread.progress_signal.connect(self.progress.setValue)
 
         self.thread.start()
+
+    def ativar_backup_automatico(self):
+
+        if not self.origens or not self.destino:
+            self.log.append(
+                "Selecione origem e destino antes de ativar."
+            )
+            return
+
+        self.timer.start(120000)  # 10 minutos
+        self.log.append("Backup automático ativado.")
+
+    def parar_backup_automatico(self):
+
+        self.timer.stop()
+        self.log.append("Backup automático parado.")
+
+    def backup_automatico(self):
+
+        self.log.append("Iniciando backup automático...")
+        self.iniciar_backup("incremental")
 
 
 app = QApplication(sys.argv)
