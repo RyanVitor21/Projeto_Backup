@@ -144,7 +144,7 @@ class BackupApp(QWidget):
         grupo_operacoes = QGroupBox("Operações")
         operacoes_layout = QVBoxLayout()
 
-        btn_incremental = QPushButton("Atualizar Backup(backup incremental)")
+        btn_incremental = QPushButton("Atualizar Backup(backup incremental:)")
         btn_incremental.clicked.connect(
             lambda: self.iniciar_backup("incremental")
         )
