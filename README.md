@@ -11,7 +11,7 @@ O objetivo do sistema é facilitar a proteção de dados importantes em disposit
 ## 1. Clonar o projeto
 
 ```bash
-git clone URL_DO_REPOSITORIO
+git https://github.com/RyanVitor21/Projeto_Backup.git
 ```
 
 ---
